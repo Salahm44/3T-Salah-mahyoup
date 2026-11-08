@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>صلاح الحديث - SMS Internet Pro (Firebase Direct Sync)</title>
+<meta name="application-name" content="SMS Internet Pro">
+<link rel="manifest" href='data:application/manifest+json,{"name": "SMS Internet Pro", "short_name": "SMS Pro", "start_url": "./", "display": "standalone", "background_color": "#fdf2f8", "theme_color": "#db2777"}'>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+body { background-color: #fdf2f8; color: #1e293b; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.hidden { display: none !important; }
+header { background: linear-gradient(to right, #db2777, #e11d48); color: white; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10; }
+header h1 { font-size: 14px; font-weight: bold; }
+.btn-header { background: #2563eb; color: white; border: none; padding: 5px 10px; border-radius: 8px; font-size: 11px; cursor: pointer; font-weight: bold; }
+.btn-header.rose { background: #be123c; }
+main { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0; overflow-y: auto; position: relative; width: 100%; height: 100%; }
+.overlay-fullscreen { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(2px); }
+.banner-top { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: #2563eb; color: white; padding: 12px 16px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 50; width: 90%; max-width: 380px; text-align: center; border: 2px solid white; }
+.toast-msg { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); background: #059669; color: white; padding: 10px 20px; border-radius: 12px; font-weight: bold; font-size: 12px; z-index: 50; border: 1px solid white; }
+.banned-box { background: #dc2626; color: white; padding: 24px; border-radius: 24px; text-align: center; border: 4px solid white; box-shadow: 0 20px 25px rgba(0,0,0,0.5); font-weight: 900; font-size: 22px; }
+.card { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 360px; box-shadow: 0 10px 25px rgba(219, 39, 119, 0.1); border: 1px solid #fce7f3; text-align: center; }
+.card h2 { font-size: 18px; color: #9f1239; margin-bottom: 4px; font-weight: bold; }
+.card p { font-size: 11px; color: #64748b; margin-bottom: 16px; }
+.settings-container { width: 100%; height: 100%; max-width: 100%; background: #fff; padding: 16px; overflow-y: auto; text-align: right; display: flex; flex-direction: column; gap: 12px; }
+.settings-section { background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 6px; }
+.settings-section h4 { font-size: 12px; font-weight: bold; color: #9f1239; margin-bottom: 2px; }
+input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 12px; outline: none; background: #fff; }
+input:focus, textarea:focus { border-color: #db2777; box-shadow: 0 0 0 2px rgba(219,39,119,0.2); }
+.ltr { direction: ltr; text-align: left; }
+.btn-primary { width: 100%; background: #db2777; color: white; border: none; padding: 10px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+.btn-primary:hover { background: #be123c; }
+.app-container { width: 100%; height: 100%; max-width: 1100px; background: white; border-radius: 0; box-shadow: none; overflow: hidden; display: flex; flex-direction: column; }
+.sidebar { width: 100%; display: flex; flex-direction: column; height: 100%; background: rgba(253, 242, 248, 0.4); position: relative; }
+.chat-area { width: 100%; display: flex; flex-direction: column; height: 100%; background: #fdf2f8; position: relative; }
+@media(min-width: 768px) {
+  .app-container { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+  .sidebar { grid-column: span 4; display: flex !important; }
+  .chat-area { grid-column: span 8; display: flex !important; }
+  .settings-container { max-width: 600px; margin: 0 auto; height: auto; max-height: 90vh; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+}
+.contact-item { padding: 10px; border-bottom: 1px solid #fce7f3; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+.contact-item:hover { background: #fdf2f8; }
+.spinner { width: 40px; height: 40px; border: 4px solid #fce7f3; border-top: 4px solid #db2777; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 8px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <span>✉</span>
+    <h1>صلاح - SMS Internet Pro (Firebase Direct Sync)</h1>
+  </div>
+  <div id="headerActions" class="hidden" style="display: flex; gap: 6px;">
+    <button id="globalTopBackBtn" class="btn-header">رجوع</button>
+    <button id="settingsBtn" class="btn-header rose">الإعدادات</button>
+    <button id="logoutBtn" class="btn-header" style="background: #1e293b;">خروج</button>
+  </div>
+</header>
+<main>
+  <div id="globalLoading" class="overlay-fullscreen hidden" style="background: rgba(255,255,255,0.9);">
+    <div class="spinner"></div>
+    <p style="font-size: 13px; font-weight: bold; color: #be123c;">جاري المزامنة مع Firebase...</p>
+  </div>
+  <div id="bannedBanner" class="overlay-fullscreen hidden" style="background: rgba(127, 29, 29, 0.85);">
+    <div class="banned-box">
+      <div>⚠️ تم حظرك</div>
+    </div>
+  </div>
+  <div id="reportToast" class="toast-msg hidden">تم الابلاغ بنجاح</div>
+  <div id="copyToast" class="toast-msg hidden" style="background: #7c3aed;">تم نسخ البريد الإلكتروني بنجاح!</div>
+  
+  <div id="forcedAudioBanner" class="banner-top hidden">
+    <div style="font-size: 11px; font-weight: bold; margin-bottom: 8px;">رسالة صوتية إجبارية من المدير العام مستمرة. هل تريد إيقافها؟</div>
+    <div style="display: flex; gap: 8px; justify-content: center;">
+      <button id="stopForcedAudioBtn" style="background: #e11d48; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer;">إيقاف</button>
+      <button id="cancelForcedAudioBtn" style="background: #334155; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer;">إلغاء (تذكير بعد 30 ث)</button>
+    </div>
+  </div>
+
+  <div id="downloadProgressModal" class="overlay-fullscreen hidden">
+    <div class="card" style="max-width: 280px;">
+      <div style="position: relative; width: 60px; height: 60px; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center;">
+        <div style="position: absolute; inset: 0; border: 4px solid #fce7f3; border-radius: 50%;"></div>
+        <div class="spinner" style="position: absolute; inset: 0; border-color: #fce7f3; border-top-color: #db2777;"></div>
+        <span id="progressText" style="font-size: 11px; font-weight: bold; color: #be123c;">1%</span>
+      </div>
+      <h4 style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">جاري التحميل إلى ذاكرة الهاتف...</h4>
+      <p style="font-size: 10px; color: #94a3b8; margin: 0;">يرجى الانتظار حتى اكتمال التنزيل</p>
+    </div>
+  </div>
+
+  <!-- 1. شاشة تسجيل الدخول -->
+  <div style="display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 360px; gap: 10px;">
+    <div id="authScreen" class="card" style="width: 100%;">
+      <h2>تسجيل الدخول</h2>
+      <p>أدخل رقم هاتفك ورمز PIN الخاص بك للوصول للحساب</p>
+      <input type="tel" id="loginPhone" class="ltr" placeholder="رقم الهاتف">
+      <input type="password" id="loginPin" class="ltr" placeholder="رمز PIN الخاص بك (حتى 20 رقماً)" maxlength="20">
+      <button id="loginBtn" class="btn-primary">دخول / إنشاء حساب جديد</button>
+      <div id="authStatus" style="font-size: 11px; color: #e11d48; margin-top: 10px; font-weight: bold;"></div>
+      <div style="margin-top: 20px; padding-top: 12px; border-top: 1px solid #f1f5f9; text-align: center; line-height: 1.6;">
+        <span style="color: #2563eb; font-weight: bold; font-size: 12px;">تصميم و اعداد // </span>
+        <span style="color: #b91c1c; font-weight: 900; font-size: 14px;">صلاح مهيوب</span><br>
+        <span style="color: #2563eb; font-weight: bold; font-size: 12px;">للتواصل واتساب // 734571128</span>
+      </div>
+    </div>
+    <div id="copyEmailBox" class="ltr" style="width: 100%; background: #ffffff; border: 2px dashed #7c3aed; padding: 12px; border-radius: 12px; text-align: center; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.2s;" title="اضغط لنسخ البريد الإلكتروني">
+      <div style="font-size: 10px; color: #7c3aed; font-weight: bold; margin-bottom: 2px;">البريد الإلكتروني (اضغط للنسخ)</div>
+      <div style="font-size: 13px; font-weight: 900; color: #1e293b;">muhammadforexcc@gmail.com</div>
+    </div>
+  </div>
+
+  <!-- 2. شاشة إعداد الملف الشخصي -->
+  <div id="profileScreen" class="card hidden">
+    <h2>إنشاء حساب جديد</h2>
+    <p>تأكيد رمز PIN ثم إدخال اسمك ورقمك التعريفي الفريد</p>
+    <input type="password" id="setupPin" class="ltr" placeholder="رمز PIN" maxlength="20">
+    <input type="password" id="setupPinConfirm" class="ltr" placeholder="تأكيد رمز PIN مرة أخرى" maxlength="20">
+    <input type="text" id="setupName" placeholder="اسمك الكامل">
+    <input type="text" id="setupCustomId" class="ltr" placeholder="رقم تعريفي خاص">
+    <button id="saveProfileBtn" class="btn-primary">حفظ ومتابعة</button>
+    <div id="profileStatus" style="font-size: 11px; color: #e11d48; margin-top: 10px; font-weight: bold;"></div>
+  </div>
+
+  <!-- 3. شاشة إعدادات التطبيق -->
+  <div id="settingsScreen" class="settings-container hidden">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #fce7f3; padding-bottom: 8px;">
+      <h2 style="font-size: 16px; color: #9f1239; font-weight: bold;">الإعدادات العامة</h2>
+      <button id="closeSettingsBtn" style="background: #64748b; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; cursor: pointer;">العودة</button>
+    </div>
+    <div class="settings-section" style="background: #fff1f2; border-color: #fecdd3;">
+      <h4 style="color: #9f1239;">🚫 إدارة المحظورين (الأرقام والجهات)</h4>
+      <div id="bannedContactsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto;"></div>
+    </div>
+    <div class="settings-section">
+      <h4>💾 حفظ الجلسة في ذاكرة الهاتف</h4>
+      <select id="sessionSaveSetting">
+        <option value="save">حفظ تسجيل الدخول (دخول تلقائي)</option>
+        <option value="nosave">عدم حفظ تسجيل الدخول (طلب البيانات كل مرة)</option>
+      </select>
+    </div>
+    <div class="settings-section">
+      <h4>🎨 المظهر والتنبيهات</h4>
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 11px; font-weight: bold; color: #831843;">لون خلفية المحادثة</span>
+        <input type="color" id="chatBgColorPicker" value="#fdf2f8" style="width: 36px; height: 32px; border-radius: 6px; cursor: pointer; border: 1px solid #f472b6; padding: 0;">
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+        <span style="font-size: 11px; color: #334155;">تفعيل نغمة التنبيه</span>
+        <input type="checkbox" id="notificationSoundToggle" checked style="width: 16px; height: 16px;">
+      </div>
+      <select id="notificationToneSelect" style="margin-top: 4px;">
+        <option value="bell">جرس كلاسيكي (Bell)</option>
+        <option value="beep">تنبيه رقمي (Digital Beep)</option>
+        <option value="chime">نغمة هادئة (Soft Chime)</option>
+      </select>
+    </div>
+    <div class="settings-section">
+      <h4>🔒 الأمان وكلمات المرور</h4>
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 11px; color: #334155;">حماية رمز PIN عند البدء</span>
+        <input type="checkbox" id="appPinLockToggle" checked style="width: 16px; height: 16px;">
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+        <span style="font-size: 11px; color: #334155;">إخفاء المحادثات برمز سري</span>
+        <input type="checkbox" id="chatSecretLockToggle" style="width: 16px; height: 16px;">
+      </div>
+      <input type="password" id="chatSecretPin" class="ltr" placeholder="الرمز السري الخاص بالمحادثات" maxlength="20" style="margin-top: 4px;">
+      <input type="password" id="currentPinSetting" class="ltr" placeholder="رمز PIN الحالي لتغييره" maxlength="20" style="margin-top: 4px;">
+      <input type="password" id="newPinSetting" class="ltr" placeholder="رمز PIN الجديد (اختياري)" maxlength="20" style="margin-top: 4px;">
+    </div>
+    <div class="settings-section">
+      <h4>🗑️ إدارة وحذف المحادثات</h4>
+      <select id="settingTargetFriend" style="margin-bottom: 6px;">
+        <option value="all">حذف جميع الرسائل (من الكل)</option>
+      </select>
+      <button id="settingDeleteChatBtn" style="background: #e11d48; color: white; border: none; padding: 6px; border-radius: 6px; font-size: 11px; width: 100%; cursor: pointer;">حذف محادثة الصديق المحدد</button>
+    </div>
+    <div class="settings-section">
+      <h4>📢 إرسال رسالة لكل الأصدقاء</h4>
+      <textarea id="settingsBroadcastText" placeholder="اكتب رسالة لجميع أصدقائك..." style="height: 50px; resize: none;"></textarea>
+      <input type="file" id="settingsBroadcastFile" accept="image/*,audio/*" style="font-size: 10px;">
+      <button id="settingsSendBroadcastBtn" class="btn-primary" style="padding: 8px; font-size: 11px;">إرسال لكل الأصدقاء الآن</button>
+    </div>
+    <button id="saveSettingsBtn" class="btn-primary" style="margin-top: 8px;">حفظ كافة الإعدادات</button>
+    <div id="settingsStatus" style="font-size: 11px; color: #db2777; font-weight: bold; text-align: center;"></div>
+    
+    <div id="adminPanelSection" class="hidden settings-section" style="background: #fff1f2; border-color: #fecdd3;">
+      <h4 style="color: #9f1239;">👑 لوحة تحكم المدير العام (البث العام)</h4>
+      <textarea id="adminBroadcastText" placeholder="اكتب رسالة لجميع المشتركين في النظام..." style="height: 50px; background: white; resize: none;"></textarea>
+      <input type="file" id="adminBroadcastFile" accept="image/*,audio/*" style="font-size: 10px;">
+      <button id="adminSendBroadcastBtn" style="background: #e11d48; color: white; border: none; padding: 8px; border-radius: 6px; font-size: 11px; width: 100%; cursor: pointer;">إرسال لكل المشتركين</button>
+    </div>
+  </div>
+
+  <div id="chatPinModal" class="overlay-fullscreen hidden">
+    <div class="card" style="max-width: 280px;">
+      <h3 style="font-size: 13px; font-weight: bold; margin-bottom: 8px;">أدخل الرمز السري للمحادثات</h3>
+      <input type="password" id="inputChatSecretPin" class="ltr" placeholder="الرمز السري..." maxlength="20" style="text-align: center;">
+      <button id="verifyChatPinBtn" class="btn-primary" style="padding: 8px;">فتح المحادثات</button>
+      <div id="chatPinError" style="font-size: 11px; color: #e11d48; margin-top: 6px;"></div>
+    </div>
+  </div>
+
+  <!-- 4. واجهة التطبيق الرئيسية -->
+  <div id="appScreen" class="app-container hidden">
+    <div id="contactsSidebar" class="sidebar">
+      <div id="importingContactsOverlay" class="overlay-fullscreen hidden" style="position: absolute; background: rgba(255,255,255,0.85);">
+        <span style="color: #dc2626; font-size: 16px; font-weight: 900;">مزامنة الأصدقاء من Firebase...</span>
+      </div>
+      <div style="padding: 10px; background: rgba(244, 114, 182, 0.15); border-bottom: 1px solid #fce7f3;">
+        <h4 style="font-size: 11px; font-weight: bold; color: #831843; margin-bottom: 6px;">مراسلة مباشرة (رقم أو معرف)</h4>
+        <div style="display: flex; gap: 6px;">
+          <input type="text" id="directChatId" class="ltr" placeholder="الرقم أو الهاتف..." style="margin: 0; padding: 6px; font-size: 11px;">
+          <button id="directChatBtn" style="background: #db2777; color: white; border: none; padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer;">راسل</button>
+        </div>
+      </div>
+      <div style="padding: 10px; background: white; border-bottom: 1px solid #e2e8f0;">
+        <h4 style="font-size: 11px; font-weight: bold; color: #334155; margin-bottom: 6px;">قائمة الأصدقاء والمراسلات الواردة</h4>
+        <div style="display: flex; gap: 6px;">
+          <input type="text" id="friendSearchId" placeholder="أضف برقم أو معرف..." style="margin: 0; padding: 6px; font-size: 11px;">
+          <button id="addFriendBtn" style="background: #be123c; color: white; border: none; padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer;">إضافة</button>
+        </div>
+      </div>
+      <div id="contactsList" style="flex: 1; overflow-y: auto; background: white;"></div>
+    </div>
+
+    <!-- حاوية المحادثة -->
+    <div id="chatContainer" class="chat-area hidden">
+      <div style="padding: 8px 12px; background: rgba(255,255,255,0.9); border-bottom: 1px solid #fce7f3; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+        <div id="chatHeadTitle" style="font-weight: bold; font-size: 12px; color: #1e293b;">اختر صديقاً أو ابدأ مراسلة مباشرة</div>
+        <div id="chatHeadControls" class="hidden" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <span style="font-size: 10px; color: #64748b;">هويتك:</span>
+          <button type="button" id="modePhoneBtn" style="font-size: 10px; background: #2563eb; color: white; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-weight: bold;">رقم هاتفي</button>
+          <button type="button" id="modeCustomBtn" style="font-size: 10px; background: #64748b; color: white; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-weight: bold;">رقمي الخاص</button>
+          <button id="backBtn" style="font-size: 10px; background: #e2e8f0; color: #334155; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer;">العودة</button>
+        </div>
+      </div>
+      <div id="chatLoadingIndicator" class="hidden" style="color: #dc2626; font-size: 13px; font-weight: bold; text-align: center; padding: 6px; background: #fff1f2; border-bottom: 1px solid #fecdd3;">جاري مزامنة الرسائل عبر Firebase...</div>
+      <div id="messages" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px;"></div>
+      <div id="replyBar" class="hidden" style="padding: 6px 12px; background: #fce7f3; border-top: 1px solid #f472b6; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #831843;">
+        <span id="replyInfo">الرد على رسالة</span>
+        <button id="cancelReplyBtn" style="background: none; border: none; color: #e11d48; font-weight: bold; cursor: pointer;">✕</button>
+      </div>
+
+      <div id="stickerPicker" class="hidden" style="position: absolute; bottom: 60px; right: 10px; left: 10px; background: white; border: 1px solid #fce7f3; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 10px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; z-index: 30;">
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">😊</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">😂</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">❤️</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">🔥</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">👍</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">🎉</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">✨</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">😎</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">🌹</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">💎</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">🚀</button>
+        <button type="button" class="sticker-item" style="background: none; border: none; font-size: 20px; cursor: pointer;">💡</button>
+      </div>
+
+      <form id="sendForm" class="hidden" style="padding: 8px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 6px; align-items: center; position: relative;">
+        <input type="file" id="mediaInput" accept="image/*,audio/*" class="hidden">
+        <button type="button" id="attachBtn" title="إرسال صورة أو صوت" style="background: #fce7f3; border: none; color: #be123c; padding: 8px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;">📎</button>
+        <button type="button" id="micBtn" title="تسجيل صوتي" style="background: #fce7f3; border: none; color: #be123c; padding: 8px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;">🎤</button>
+        <button type="button" id="stickerBtn" title="ملصقات" style="background: #fce7f3; border: none; color: #be123c; padding: 8px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;">😊</button>
+        <textarea id="messageText" placeholder="اكتب رسالتك هنا..." style="flex: 1; margin: 0; padding: 6px 10px; height: 36px; resize: none; font-size: 11px;"></textarea>
+        <button type="submit" style="background: #db2777; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer;">إرسال</button>
+      </form>
+    </div>
+  </div>
+</main>
+
+<div id="mediaModal" class="overlay-fullscreen hidden" style="background: rgba(0,0,0,0.9);">
+  <button id="closeModal" style="position: absolute; top: 16px; right: 16px; color: white; font-size: 16px; font-weight: bold; background: #e11d48; border: none; padding: 6px 12px; border-radius: 50%; cursor: pointer;">✕</button>
+  <div id="modalContent" style="max-width: 100%; display: flex; align-items: center; justify-content: center;"></div>
+</div>
+
+<!-- Firebase SDK Modular v10 Direct Realtime Database Sync -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getDatabase, ref, get, set, push, remove, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDpjHMvXEJbtU14NeVOfXXxpzIkdwmamIM",
+  authDomain: "salah-mahyoup.firebaseapp.com",
+  databaseURL: "https://salah-mahyoup-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "salah-mahyoup",
+  storageBucket: "salah-mahyoup.firebasestorage.app",
+  messagingSenderId: "855159270156",
+  appId: "1:855159270156:web:9d92d748506d20b6d2f729",
+  measurementId: "G-FZHMD7ZQTV"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+class SMSProApp {
+  constructor() {
+    this.currentUser = null;
+    this.isAdmin = false;
+    this.activeFriend = null;
+    this.contactsUnsubscribe = null;
+    this.banUnsubscribe = null;
+    this.messagesUnsubscribe = null;
+    this.replyToMessage = null;
+    this.mediaRecorder = null;
+    this.audioChunks = [];
+    this.senderMode = 'phone';
+    this.activeForcedAudio = null;
+    this.forcedAudioTimer = null;
+    this.applySavedChatBg();
+    this.initListeners();
+    this.checkSession();
+  }
+
+  applySavedChatBg() {
+    const savedBg = localStorage.getItem("sms_chat_bg_color") || "#fdf2f8";
+    const msgBox = document.getElementById("messages");
+    if (msgBox) { msgBox.style.backgroundColor = savedBg; }
+  }
+
+  playNotificationTone() {
+    const soundEnabled = localStorage.getItem("sms_sound_enabled") !== "false";
+    if (!soundEnabled) return;
+    const toneType = localStorage.getItem("sms_notification_tone") || "bell";
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      if (toneType === 'bell') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.2);
+      } else if (toneType === 'beep') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+      } else {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.15);
+      }
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch(e) {}
+  }
+
+  handleMandatoryAudio(audioSrc) {
+    if (this.activeForcedAudio) {
+      try { this.activeForcedAudio.pause(); } catch(e){}
+    }
+    const audio = new Audio(audioSrc);
+    audio.play().catch(e => console.log("Auto-play restricted", e));
+    this.activeForcedAudio = audio;
+    const banner = document.getElementById("forcedAudioBanner");
+    const stopBtn = document.getElementById("stopForcedAudioBtn");
+    const cancelBtn = document.getElementById("cancelForcedAudioBtn");
+    banner.classList.remove("hidden");
+    if (this.forcedAudioTimer) clearTimeout(this.forcedAudioTimer);
+    const schedulePrompt = () => {
+      if (this.forcedAudioTimer) clearTimeout(this.forcedAudioTimer);
+      this.forcedAudioTimer = setTimeout(() => {
+        if (!audio.paused && !audio.ended) { banner.classList.remove("hidden"); }
+      }, 30000);
+    };
+    schedulePrompt();
+    stopBtn.onclick = () => {
+      audio.pause();
+      banner.classList.add("hidden");
+      if (this.forcedAudioTimer) clearTimeout(this.forcedAudioTimer);
+      this.activeForcedAudio = null;
+    };
+    cancelBtn.onclick = () => {
+      banner.classList.add("hidden");
+      if (!audio.paused && !audio.ended) { schedulePrompt(); }
+    };
+  }
+
+  startDownload(url, filename) {
+    const modal = document.getElementById("downloadProgressModal");
+    const progressText = document.getElementById("progressText");
+    modal.classList.remove("hidden");
+    let percent = 1;
+    progressText.textContent = `${percent}%`;
+    const interval = setInterval(() => {
+      percent += Math.floor(Math.random() * 8) + 3;
+      if (percent >= 100) {
+        percent = 100;
+        progressText.textContent = `100%`;
+        clearInterval(interval);
+        setTimeout(() => {
+          modal.classList.add("hidden");
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }, 300);
+      } else {
+        progressText.textContent = `${percent}%`;
+      }
+    }, 70);
+  }
+
+  async checkSession() {
+    const saveSession = localStorage.getItem("sms_save_session") !== "nosave";
+    const savedPhone = localStorage.getItem("sms_user_phone");
+    const savedPin = localStorage.getItem("sms_user_pin");
+    const pinLock = localStorage.getItem("sms_pin_lock_enabled") !== "false";
+    if (savedPhone && savedPin && saveSession && !pinLock) {
+      await this.authenticateWithCredentials(savedPhone, savedPin, true);
+    } else if (savedPhone) {
+      document.getElementById("loginPhone").value = savedPhone;
+    }
+    document.getElementById("sessionSaveSetting").value = saveSession ? "save" : "nosave";
+  }
+
+  async authenticateWithCredentials(phone, pin, silent = false) {
+    const status = document.getElementById("authStatus");
+    try {
+      if (!auth.currentUser) await signInAnonymously(auth);
+      const cleanPhone = phone.replace(/\D/g, '');
+      const snap = await get(ref(db, `users/${cleanPhone}`));
+      if (snap.exists()) {
+        const userData = snap.val();
+        if (userData.banned) {
+          if (!silent) status.textContent = "هذا الحساب محظور من دخول التطبيق.";
+          return;
+        }
+        if (userData.pin === pin) {
+          const isAdminCheck = (cleanPhone === "734571128" || userData.customId === "8888");
+          this.currentUser = userData;
+          this.isAdmin = isAdminCheck;
+          const saveSessionChoice = document.getElementById("sessionSaveSetting").value;
+          if (saveSessionChoice === 'save') {
+            localStorage.setItem("sms_user_phone", cleanPhone);
+            localStorage.setItem("sms_user_pin", pin);
+            localStorage.setItem("sms_save_session", "save");
+          } else {
+            localStorage.removeItem("sms_user_phone");
+            localStorage.removeItem("sms_user_pin");
+            localStorage.setItem("sms_save_session", "nosave");
+          }
+          this.initUserBanListener();
+          this.showAppScreen();
+        } else {
+          if (!silent) status.textContent = "رمز PIN غير صحيح!";
+        }
+      } else {
+        if (!silent) {
+          window.tempPhone = cleanPhone;
+          document.getElementById("setupPin").value = pin;
+          document.getElementById("authScreen").classList.add("hidden");
+          document.getElementById("profileScreen").classList.remove("hidden");
+        }
+      }
+    } catch (e) {
+      if (!silent) status.textContent = "فشل الاتصال بقاعدة بيانات Firebase.";
+    }
+  }
+
+  initUserBanListener() {
+    if (this.banUnsubscribe) this.banUnsubscribe();
+    this.banUnsubscribe = onValue(ref(db, `users/${this.currentUser.uid}/banned`), snap => {
+      if (snap.val() === true) {
+        const banner = document.getElementById("bannedBanner");
+        banner.classList.remove("hidden");
+        setTimeout(() => { banner.classList.add("hidden"); }, 5000);
+      }
+    });
+  }
+
+  initListeners() {
+    document.getElementById("copyEmailBox").onclick = () => {
+      const email = "muhammadforexcc@gmail.com";
+      navigator.clipboard.writeText(email).then(() => {
+        const toast = document.getElementById("copyToast");
+        toast.classList.remove("hidden");
+        setTimeout(() => { toast.classList.add("hidden"); }, 2000);
+      }).catch(err => { alert("تعذر النسخ تلقائياً."); });
+    };
+
+    document.getElementById("globalTopBackBtn").onclick = () => {
+      this.cleanupListeners();
+      document.getElementById("settingsScreen").classList.add("hidden");
+      document.getElementById("chatContainer").classList.add("hidden");
+      this.activeFriend = null;
+      if (this.currentUser) {
+        ['authScreen', 'profileScreen', 'settingsScreen', 'chatContainer'].forEach(id => {
+          document.getElementById(id).classList.add("hidden");
+        });
+        document.getElementById("appScreen").classList.remove("hidden");
+        document.getElementById("contactsSidebar").classList.remove("hidden");
+        document.getElementById("headerActions").classList.remove("hidden");
+        document.getElementById("globalTopBackBtn").classList.add("hidden");
+        document.getElementById("settingsBtn").classList.remove("hidden");
+        document.getElementById("logoutBtn").classList.remove("hidden");
+        document.getElementById("copyEmailBox").style.display = "none";
+        this.loadContacts();
+      }
+    };
+
+    document.getElementById("settingsBtn").onclick = () => {
+      const secretLock = localStorage.getItem("chat_secret_lock") === "true";
+      if (secretLock && !window.chatUnlocked) {
+        document.getElementById("chatPinModal").classList.remove("hidden");
+        return;
+      }
+      this.openSettingsPanel();
+    };
+
+    document.getElementById("logoutBtn").onclick = () => {
+      this.cleanupListeners();
+      localStorage.clear();
+      location.reload();
+    };
+
+    document.getElementById("modePhoneBtn").onclick = () => {
+      this.senderMode = 'phone';
+      document.getElementById("modePhoneBtn").style.background = "#2563eb";
+      document.getElementById("modeCustomBtn").style.background = "#64748b";
+    };
+
+    document.getElementById("modeCustomBtn").onclick = () => {
+      this.senderMode = 'customId';
+      document.getElementById("modePhoneBtn").style.background = "#64748b";
+      document.getElementById("modeCustomBtn").style.background = "#db2777";
+    };
+
+    const stickerBtn = document.getElementById("stickerBtn");
+    const stickerPicker = document.getElementById("stickerPicker");
+    stickerBtn.onclick = (e) => {
+      e.stopPropagation();
+      stickerPicker.classList.toggle("hidden");
+    };
+    document.addEventListener("click", (e) => {
+      if (!stickerPicker.contains(e.target) && e.target !== stickerBtn) {
+        stickerPicker.classList.add("hidden");
+      }
+    });
+
+    document.querySelectorAll(".sticker-item").forEach(btn => {
+      btn.onclick = async () => {
+        const stickerSymbol = btn.textContent;
+        stickerPicker.classList.add("hidden");
+        const mode = this.senderMode;
+        const displayValue = (mode === 'phone') ? this.currentUser.phone : this.currentUser.customId;
+        const msgData = {
+          senderId: this.currentUser.uid,
+          recipientId: this.activeFriend,
+          text: stickerSymbol,
+          media: null,
+          mediaType: null,
+          senderDisplay: displayValue,
+          senderDisplayMode: mode,
+          status: 'sent',
+          createdAt: Date.now()
+        };
+        try {
+          await push(ref(db, 'messages'), msgData);
+        } catch (err) { alert("فشل إرسال الملصق عبر Firebase."); }
+      };
+    });
+
+    document.getElementById("loginBtn").onclick = async () => {
+      const phone = document.getElementById("loginPhone").value.trim();
+      const pin = document.getElementById("loginPin").value.trim();
+      const status = document.getElementById("authStatus");
+      if (!phone || phone.length < 7) { status.textContent = "الرجاء إدخال رقم هاتف صحيح."; return; }
+      if (!pin || pin.length < 4) { status.textContent = "رمز PIN قصير جداً."; return; }
+      status.textContent = "جاري الاتصال والمصادقة...";
+      await this.authenticateWithCredentials(phone, pin, false);
+    };
+
+    document.getElementById("saveProfileBtn").onclick = async () => {
+      const pin = document.getElementById("setupPin").value.trim();
+      const pinConfirm = document.getElementById("setupPinConfirm").value.trim();
+      const name = document.getElementById("setupName").value.trim();
+      const customId = document.getElementById("setupCustomId").value.trim();
+      const status = document.getElementById("profileStatus");
+      if (pin !== pinConfirm) { status.textContent = "رمز PIN غير متطابق!"; return; }
+      if (name.length < 2) { status.textContent = "الرجاء إدخال الاسم الكامل."; return; }
+      if (customId.length < 3) { status.textContent = "الرقم التعريفي قصير جداً."; return; }
+      try {
+        status.textContent = "جاري الحفظ...";
+        if (!auth.currentUser) await signInAnonymously(auth);
+        const usersSnap = await get(ref(db, 'users'));
+        let exists = false;
+        usersSnap.forEach(c => {
+          if (c.val().customId === customId) exists = true;
+        });
+        if (exists) {
+          status.textContent = "الرقم التعريفي مستخدم مسبقاً.";
+          return;
+        }
+        const isAdminCheck = (window.tempPhone === "734571128" || customId === "8888");
+        const newUser = {
+          uid: window.tempPhone,
+          phone: window.tempPhone,
+          pin: pin,
+          name: name,
+          customId: customId,
+          banned: false,
+          createdAt: Date.now()
+        };
+        await set(ref(db, `users/${newUser.uid}`), newUser);
+        this.currentUser = newUser;
+        this.isAdmin = isAdminCheck;
+        const saveSessionChoice = document.getElementById("sessionSaveSetting").value;
+        if (saveSessionChoice === 'save') {
+          localStorage.setItem("sms_user_phone", newUser.uid);
+          localStorage.setItem("sms_user_pin", pin);
+          localStorage.setItem("sms_save_session", "save");
+        } else {
+          localStorage.setItem("sms_save_session", "nosave");
+        }
+        this.initUserBanListener();
+        document.getElementById("profileScreen").classList.add("hidden");
+        this.showAppScreen();
+      } catch (e) {
+        status.textContent = "فشل إنشاء الحساب في Firebase.";
+      }
+    };
+
+    document.getElementById("sendForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const textInput = document.getElementById("messageText");
+      const text = textInput.value.trim();
+      if (!text && !this.pendingMedia) return;
+      
+      const mode = this.senderMode;
+      const displayValue = (mode === 'phone') ? this.currentUser.phone : this.currentUser.customId;
+      const msgData = {
+        senderId: this.currentUser.uid,
+        recipientId: this.activeFriend,
+        text: text || "",
+        media: this.pendingMedia || null,
+        mediaType: this.pendingMediaType || null,
+        replyTo: this.replyToMessage ? this.replyToMessage.text : null,
+        senderDisplay: displayValue,
+        senderDisplayMode: mode,
+        status: 'sent',
+        createdAt: Date.now()
+      };
+      textInput.value = "";
+      this.pendingMedia = null;
+      this.pendingMediaType = null;
+      this.cancelReply();
+      try {
+        await push(ref(db, 'messages'), msgData);
+      } catch (err) { alert("فشل إرسال الرسالة عبر Firebase."); }
+    };
+
+    document.getElementById("attachBtn").onclick = () => document.getElementById("mediaInput").click();
+    document.getElementById("mediaInput").onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.type.startsWith('image')) {
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const MAX_HEIGHT = 800;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+            } else {
+              if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            this.pendingMedia = canvas.toDataURL('image/jpeg', 0.7);
+            this.pendingMediaType = 'image';
+            alert("تم ضغط وإرفاق الصورة بنجاح! اضغط إرسال.");
+          };
+          img.src = uploadEvent.target.result;
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type.startsWith('audio')) {
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+          this.pendingMedia = uploadEvent.target.result;
+          this.pendingMediaType = 'audio';
+          alert("تم إرفاق الصوت بنجاح! اضغط إرسال.");
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    let recording = false;
+    document.getElementById("micBtn").onclick = async () => {
+      if (!recording) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          this.mediaRecorder = new MediaRecorder(stream);
+          this.audioChunks = [];
+          this.mediaRecorder.ondataavailable = e => this.audioChunks.push(e.data);
+          this.mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(this.audioChunks, { type: 'audio/mp3' });
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              this.pendingMedia = e.target.result;
+              this.pendingMediaType = 'audio';
+              alert("تم تسجيل الصوت بنجاح! اضغط إرسال.");
+            };
+            reader.readAsDataURL(audioBlob);
+          };
+          this.mediaRecorder.start();
+          recording = true;
+          document.getElementById("micBtn").style.background = "#e11d48";
+          document.getElementById("micBtn").style.color = "white";
+          document.getElementById("micBtn").textContent = "⏹";
+        } catch (err) { alert("تعذر الوصول للميكروفون."); }
+      } else {
+        this.mediaRecorder.stop();
+        recording = false;
+        document.getElementById("micBtn").style.background = "#fce7f3";
+        document.getElementById("micBtn").style.color = "#be123c";
+        document.getElementById("micBtn").textContent = "🎤";
+      }
+    };
+
+    document.getElementById("cancelReplyBtn").onclick = () => this.cancelReply();
+
+    document.getElementById("verifyChatPinBtn").onclick = () => {
+      const pinInput = document.getElementById("inputChatSecretPin").value.trim();
+      const savedPin = localStorage.getItem("chat_secret_pin") || "";
+      if (pinInput === savedPin) {
+        window.chatUnlocked = true;
+        document.getElementById("chatPinModal").classList.add("hidden");
+        document.getElementById("inputChatSecretPin").value = "";
+        document.getElementById("chatPinError").textContent = "";
+        this.openSettingsPanel();
+      } else {
+        document.getElementById("chatPinError").textContent = "الرمز السري غير صحيح!";
+      }
+    };
+
+    document.getElementById("closeSettingsBtn").onclick = () => {
+      document.getElementById("settingsScreen").classList.add("hidden");
+      this.showAppScreen();
+    };
+
+    document.getElementById("saveSettingsBtn").onclick = async () => {
+      const currentPin = document.getElementById("currentPinSetting").value.trim();
+      const newPin = document.getElementById("newPinSetting").value.trim();
+      const lock = document.getElementById("appPinLockToggle").checked;
+      const soundToggle = document.getElementById("notificationSoundToggle").checked;
+      const toneSelect = document.getElementById("notificationToneSelect").value;
+      const chatSecretLock = document.getElementById("chatSecretLockToggle").checked;
+      const chatSecretPin = document.getElementById("chatSecretPin").value.trim();
+      const bgColor = document.getElementById("chatBgColorPicker").value;
+      const sessionSaveChoice = document.getElementById("sessionSaveSetting").value;
+      const status = document.getElementById("settingsStatus");
+      const savedPin = localStorage.getItem("sms_user_pin");
+      
+      if (savedPin && currentPin !== savedPin) {
+        status.textContent = "رمز PIN الحالي خطأ.";
+        return;
+      }
+      localStorage.setItem("sms_pin_lock_enabled", lock ? "true" : "false");
+      localStorage.setItem("sms_sound_enabled", soundToggle ? "true" : "false");
+      localStorage.setItem("sms_notification_tone", toneSelect);
+      localStorage.setItem("chat_secret_lock", chatSecretLock ? "true" : "false");
+      localStorage.setItem("sms_chat_bg_color", bgColor);
+      localStorage.setItem("sms_save_session", sessionSaveChoice);
+      this.applySavedChatBg();
+      if (chatSecretPin) localStorage.setItem("chat_secret_pin", chatSecretPin);
+      
+      if (sessionSaveChoice === 'nosave') {
+        localStorage.removeItem("sms_user_phone");
+        localStorage.removeItem("sms_user_pin");
+      } else if (this.currentUser) {
+        localStorage.setItem("sms_user_phone", this.currentUser.phone);
+        localStorage.setItem("sms_user_pin", this.currentUser.pin);
+      }
+      
+      if (newPin) {
+        this.currentUser.pin = newPin;
+        await set(ref(db, `users/${this.currentUser.uid}/pin`), newPin);
+        if (sessionSaveChoice === 'save') {
+          localStorage.setItem("sms_user_pin", newPin);
+        }
+      }
+      status.textContent = "تم الحفظ بنجاح!";
+    };
+
+    document.getElementById("settingsSendBroadcastBtn").onclick = async () => {
+      const text = document.getElementById("settingsBroadcastText").value.trim();
+      const fileInput = document.getElementById("settingsBroadcastFile");
+      if (!text && !fileInput.files[0]) {
+        alert("الرجاء كتابة رسالة أو إرفاق ملف لإرساله لكل الأصدقاء.");
+        return;
+      }
+      const executeUserBroadcast = async (m, mT) => {
+        const contactsSnap = await get(ref(db, `contacts/${this.currentUser.uid}`));
+        const contactsData = contactsSnap.val() || {};
+        if (Object.keys(contactsData).length === 0) {
+          alert("لا توجد أصدقاء في القائمة حالياً للإرسال إليهم.");
+          return;
+        }
+        const mode = this.senderMode;
+        const displayValue = (mode === 'phone') ? this.currentUser.phone : this.currentUser.customId;
+        for (const [friendUid, friendInfo] of Object.entries(contactsData)) {
+          await push(ref(db, 'messages'), {
+            senderId: this.currentUser.uid,
+            recipientId: friendInfo.uid || friendUid,
+            text: text || "ملف مرفق",
+            media: m,
+            mediaType: mT,
+            senderDisplay: displayValue,
+            senderDisplayMode: mode,
+            status: 'sent',
+            createdAt: Date.now()
+          });
+        }
+        alert("تم إرسال الرسالة لجميع أصدقائك بنجاح عبر Firebase!");
+        document.getElementById("settingsBroadcastText").value = "";
+        document.getElementById("settingsBroadcastFile").value = "";
+      };
+
+      if (fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const media = e.target.result;
+          const mediaType = fileInput.files[0].type.startsWith('audio') ? 'audio' : 'image';
+          await executeUserBroadcast(media, mediaType);
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+      } else {
+        await executeUserBroadcast(null, null);
+      }
+    };
+
+    document.getElementById("adminSendBroadcastBtn").onclick = async () => {
+      if (!this.isAdmin) return;
+      const text = document.getElementById("adminBroadcastText").value.trim();
+      const fileInput = document.getElementById("adminBroadcastFile");
+      if (!text && !fileInput.files[0]) {
+        alert("الرجاء كتابة رسالة أو إرفاق ملف صوتي للبث العام.");
+        return;
+      }
+      const executeAdminBroadcast = async (m, mT) => {
+        const usersSnap = await get(ref(db, 'users'));
+        usersSnap.forEach(c => {
+          const u = c.val();
+          if (u.uid !== this.currentUser.uid) {
+            push(ref(db, 'messages'), {
+              senderId: this.currentUser.uid,
+              recipientId: u.uid,
+              text: text || "رسالة إدارية عامة",
+              media: m,
+              mediaType: mT,
+              senderDisplay: "المدير العام",
+              senderDisplayMode: "admin",
+              status: 'sent',
+              createdAt: Date.now()
+            });
+          }
+        });
+        alert("تم إرسال البث العام لجميع المشتركين في النظام بنجاح!");
+        document.getElementById("adminBroadcastText").value = "";
+        document.getElementById("adminBroadcastFile").value = "";
+      };
+
+      if (fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const media = e.target.result;
+          const mediaType = fileInput.files[0].type.startsWith('audio') ? 'audio' : 'image';
+          await executeAdminBroadcast(media, mediaType);
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+      } else {
+        await executeAdminBroadcast(null, null);
+      }
+    };
+
+    document.getElementById("settingDeleteChatBtn").onclick = async () => {
+      const target = document.getElementById("settingTargetFriend").value;
+      const msgsSnap = await get(ref(db, 'messages'));
+      const data = msgsSnap.val() || {};
+      if (target === "all") {
+        if (confirm("هل تريد حذف جميع رسائلك من على النظام بالكامل (للجميع)؟")) {
+          for (const [mId, m] of Object.entries(data)) {
+            if (String(m.senderId).trim() === String(this.currentUser.uid).trim()) {
+              await remove(ref(db, `messages/${mId}`));
+            }
+          }
+          alert("تم حذف جميع رسائلك بنجاح!");
+        }
+      } else {
+        if (confirm("هل تريد حذف محادثة هذا الصديق؟")) {
+          for (const [mId, m] of Object.entries(data)) {
+            const mSender = String(m.senderId || '').trim();
+            const mRecipient = String(m.recipientId || '').trim();
+            const currentUid = String(this.currentUser.uid || '').trim();
+            const targetFriend = String(target || '').trim();
+            if ((mSender === currentUid && mRecipient === targetFriend) || (mSender === targetFriend && mRecipient === currentUid)) {
+              await remove(ref(db, `messages/${mId}`));
+            }
+          }
+          alert("تم حذف محادثة الصديق بنجاح!");
+        }
+      }
+    };
+
+    document.getElementById("backBtn").onclick = () => {
+      this.activeFriend = null;
+      this.cleanupListeners();
+      document.getElementById("chatContainer").classList.add("hidden");
+      document.getElementById("contactsSidebar").classList.remove("hidden");
+      document.getElementById("headerActions").classList.remove("hidden");
+      document.getElementById("globalTopBackBtn").classList.add("hidden");
+      document.getElementById("settingsBtn").classList.remove("hidden");
+      document.getElementById("logoutBtn").classList.remove("hidden");
+      this.loadContacts();
+    };
+
+    document.getElementById("directChatBtn").onclick = async () => {
+      const sId = document.getElementById("directChatId").value.trim();
+      if (!sId) return;
+      const snap = await get(ref(db, 'users'));
+      let tKey = null, tData = null;
+      snap.forEach(c => {
+        const u = c.val();
+        if (u.customId === sId || u.phone === sId) {
+          tKey = c.key;
+          tData = u;
+        }
+      });
+      if (!tData) { alert("لم يتم العثور على المستخدم."); return; }
+      document.getElementById("directChatId").value = "";
+      let displayName = tData.name;
+      if (tData.phone === "734571128" || tData.customId === "8888") { displayName = "المدير العام"; }
+      this.openChat(tKey, displayName);
+    };
+
+    document.getElementById("addFriendBtn").onclick = async () => {
+      const sId = document.getElementById("friendSearchId").value.trim();
+      if (!sId) return;
+      const snap = await get(ref(db, 'users'));
+      let fKey = null, fData = null, addedBy = 'phone';
+      snap.forEach(c => {
+        const u = c.val();
+        if (u.customId === sId) {
+          fKey = c.key;
+          fData = u;
+          addedBy = 'customId';
+        } else if (u.phone === sId) {
+          fKey = c.key;
+          fData = u;
+          addedBy = 'phone';
+        }
+      });
+      if (!fData) { alert("المستخدم غير موجود في قاعدة بيانات Firebase."); return; }
+      let contactName = fData.name;
+      if (fData.phone === "734571128" || fData.customId === "8888") { contactName = "المدير العام"; }
+      
+      try {
+        await set(ref(db, `contacts/${this.currentUser.uid}/${fKey}`), {
+          uid: fData.uid,
+          name: contactName,
+          customId: fData.customId,
+          phone: fData.phone,
+          addedBy: addedBy,
+          muted: false,
+          blocked: false
+        });
+        document.getElementById("friendSearchId").value = "";
+        this.loadContacts();
+        alert("تمت إضافة الصديق بنجاح إلى Firebase!");
+      } catch (err) {
+        alert("فشل إضافة الصديق، تأكد من قواعد أمان Firebase.");
+      }
+    };
+
+    document.getElementById("closeModal").onclick = () => {
+      document.getElementById("mediaModal").classList.add("hidden");
+      document.getElementById("modalContent").innerHTML = "";
+    };
+  }
+
+  cleanupListeners() {
+    if (this.contactsUnsubscribe) { this.contactsUnsubscribe(); this.contactsUnsubscribe = null; }
+    if (this.banUnsubscribe) { this.banUnsubscribe(); this.banUnsubscribe = null; }
+    if (this.messagesUnsubscribe) { this.messagesUnsubscribe(); this.messagesUnsubscribe = null; }
+  }
+
+  async openSettingsPanel() {
+    this.cleanupListeners();
+    ['authScreen', 'profileScreen', 'settingsScreen', 'appScreen', 'chatContainer'].forEach(id => {
+      document.getElementById(id).classList.add("hidden");
+    });
+    document.getElementById("copyEmailBox").style.display = "none";
+    document.getElementById("settingsScreen").classList.remove("hidden");
+    document.getElementById("headerActions").classList.remove("hidden");
+    document.getElementById("globalTopBackBtn").classList.remove("hidden");
+    document.getElementById("settingsBtn").classList.add("hidden");
+    document.getElementById("logoutBtn").classList.add("hidden");
+    
+    document.getElementById("appPinLockToggle").checked = localStorage.getItem("sms_pin_lock_enabled") !== "false";
+    document.getElementById("notificationSoundToggle").checked = localStorage.getItem("sms_sound_enabled") !== "false";
+    document.getElementById("notificationToneSelect").value = localStorage.getItem("sms_notification_tone") || "bell";
+    document.getElementById("chatSecretLockToggle").checked = localStorage.getItem("chat_secret_lock") === "true";
+    document.getElementById("currentPinSetting").value = localStorage.getItem("sms_user_pin") || "";
+    document.getElementById("chatSecretPin").value = localStorage.getItem("sms_secret_pin") || "";
+    document.getElementById("chatBgColorPicker").value = localStorage.getItem("sms_chat_bg_color") || "#fdf2f8";
+    document.getElementById("sessionSaveSetting").value = localStorage.getItem("sms_save_session") !== "nosave" ? "save" : "nosave";
+
+    const snap = await get(ref(db, `contacts/${this.currentUser.uid}`));
+    const data = snap.val() || {};
+    const bannedBox = document.getElementById("bannedContactsList");
+    let bannedHtml = "";
+    let options = '<option value="all">حذف جميع الرسائل (من الكل)</option>';
+    Object.entries(data).forEach(([uid, u]) => {
+      options += `<option value="${uid}">حذف محادثة: ${u.name}</option>`;
+      if (u.blocked) {
+        bannedHtml += `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 6px 10px; border-radius: 8px; border: 1px solid #fecdd3;">
+            <span style="font-size: 11px; font-weight: bold; color: #9f1239;">${u.name || u.phone || u.customId}</span>
+            <button onclick="window.appInstance.toggleBlock('${uid}', false); window.appInstance.openSettingsPanel();" style="background: #059669; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer;">فك الحظر</button>
+          </div>
+        `;
+      }
+    });
+    bannedBox.innerHTML = bannedHtml || '<div style="font-size: 10px; color: #64748b; text-align: center;">لا توجد أرقام أو أصدقاء محظورون حالياً.</div>';
+    document.getElementById("settingTargetFriend").innerHTML = options;
+
+    if (this.isAdmin) {
+      document.getElementById("adminPanelSection").classList.remove("hidden");
+    }
+  }
+
+  async reportUser(phone, customId, name) {
+    if (!confirm(`هل تريد الإبلاغ عن المستخدم ${name}؟`)) return;
+    const adminUid = "734571128";
+    const reportText = `بلاغ\nالرقم/المعرف المبلغ عنه: ${phone || customId}\nاسم المستخدم: ${name}\nالمبلغ: ${this.currentUser.name} (${this.currentUser.phone})`;
+    try {
+      await push(ref(db, 'messages'), {
+        senderId: this.currentUser.uid,
+        recipientId: adminUid,
+        text: reportText,
+        media: null,
+        mediaType: null,
+        senderDisplay: this.currentUser.name,
+        senderDisplayMode: 'customId',
+        status: 'sent',
+        createdAt: Date.now()
+      });
+      const toast = document.getElementById("reportToast");
+      toast.classList.remove("hidden");
+      setTimeout(() => { toast.classList.add("hidden"); }, 2000);
+    } catch(e) {
+      alert("فشل إرسال البلاغ عبر Firebase.");
+    }
+  }
+
+  showAppScreen() {
+    ['authScreen', 'profileScreen', 'settingsScreen', 'chatContainer'].forEach(id => {
+      document.getElementById(id).classList.add("hidden");
+    });
+    document.getElementById("copyEmailBox").style.display = "none";
+    document.getElementById("appScreen").classList.remove("hidden");
+    document.getElementById("contactsSidebar").classList.remove("hidden");
+    document.getElementById("headerActions").classList.remove("hidden");
+    document.getElementById("globalTopBackBtn").classList.add("hidden");
+    document.getElementById("settingsBtn").classList.remove("hidden");
+    document.getElementById("logoutBtn").classList.remove("hidden");
+    this.loadContacts();
+    this.checkLatestAdminBroadcast();
+  }
+
+  async checkLatestAdminBroadcast() {
+    try {
+      const snap = await get(ref(db, 'messages'));
+      const msgs = snap.val() || {};
+      let latestAdminAudio = null;
+      for (const [mId, m] of Object.entries(msgs)) {
+        if (String(m.recipientId).trim() === String(this.currentUser.uid).trim() && (String(m.senderId).trim() === "734571128" || m.senderDisplayMode === "admin")) {
+          if (m.mediaType === 'audio' && m.media) {
+            latestAdminAudio = m.media;
+          }
+        }
+      }
+      if (latestAdminAudio) {
+        const lastHandledKey = `handled_admin_audio_${this.currentUser.uid}`;
+        if (localStorage.getItem(lastHandledKey) !== latestAdminAudio) {
+          localStorage.setItem(lastHandledKey, latestAdminAudio);
+          this.handleMandatoryAudio(latestAdminAudio);
+        }
+      }
+    } catch(e) {}
+  }
+
+  loadContacts() {
+    if (this.contactsUnsubscribe) this.contactsUnsubscribe();
+    const importOverlay = document.getElementById("importingContactsOverlay");
+    importOverlay.classList.remove("hidden");
+
+    this.contactsUnsubscribe = onValue(ref(db, 'messages'), async (snapshot) => {
+      try {
+        const [contactsSnap, usersSnap] = await Promise.all([
+          get(ref(db, `contacts/${this.currentUser.uid}`)),
+          get(ref(db, `users`))
+        ]);
+        const contactsData = contactsSnap.val() || {};
+        const usersData = usersSnap.val() || {};
+        const msgs = snapshot.val() || {};
+
+        let incomingSenders = {};
+        for (const [mId, m] of Object.entries(msgs)) {
+          const mSender = String(m.senderId || '').trim();
+          const mRecipient = String(m.recipientId || '').trim();
+          const currentUid = String(this.currentUser.uid || '').trim();
+
+          if (mRecipient === currentUid && mSender !== currentUid) {
+            if (!contactsData[mSender]) {
+              incomingSenders[mSender] = m;
+            }
+          }
+        }
+
+        const container = document.getElementById("contactsList");
+        let htmlContent = "";
+        const friendEntries = Object.entries(contactsData);
+        if (friendEntries.length > 0) {
+          htmlContent += friendEntries.map(([uid, user]) => {
+            let displayName = user.name;
+            if (user.phone === "734571128" || user.customId === "8888") { displayName = "المدير العام"; }
+            let identifierDisplay = user.addedBy === 'customId' ? `ID: ${user.customId}` : `هاتف: ${user.phone}`;
+            return `
+              <div class="contact-item">
+                <div onclick="window.appInstance.openChat('${uid}', '${displayName}')" style="cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: space-between;">
+                  <div>
+                    <div style="font-weight: bold; color: #1e293b; font-size: 12px;">${displayName} ${user.muted ? '🔕' : ''} ${user.blocked ? '🚫' : ''}</div>
+                    <div style="font-size: 10px; color: #94a3b8;">${identifierDisplay}</div>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 4px; align-items: center; margin-right: 6px;">
+                  <button onclick="window.appInstance.reportUser('${user.phone}', '${user.customId}', '${displayName}')" style="font-size: 10px; background: #fef3c7; color: #92400e; border: none; padding: 3px 6px; border-radius: 4px; font-weight: bold; cursor: pointer;" title="بلاغ">بلاغ ⚠️</button>
+                  <button onclick="window.appInstance.toggleMute('${uid}', ${!user.muted})" style="font-size: 10px; background: #e2e8f0; border: none; padding: 3px 6px; border-radius: 4px; cursor: pointer;">${user.muted ? 'إلغاء كتم' : 'كتم'}</button>
+                  <button onclick="window.appInstance.toggleBlock('${uid}', ${!user.blocked})" style="font-size: 10px; background: #ffe4e6; color: #be123c; border: none; padding: 3px 6px; border-radius: 4px; cursor: pointer;">${user.blocked ? 'إلغاء حظر' : 'حظر'}</button>
+                  <button onclick="window.appInstance.deleteContact('${uid}')" style="font-size: 10px; background: #cbd5e1; border: none; padding: 3px 6px; border-radius: 4px; cursor: pointer;">حذف</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        const senderEntries = Object.entries(incomingSenders);
+        if (senderEntries.length > 0) {
+          htmlContent += `<div style="background: #fdf2f8; padding: 6px 10px; font-size: 10px; font-weight: bold; color: #db2777; border-top: 1px solid #fce7f3; border-bottom: 1px solid #fce7f3;">رسائل من غير أصدقاء</div>`;
+          htmlContent += senderEntries.map(([sUid, msgObj]) => {
+            const senderInfo = usersData[sUid] || {};
+            let identifierText = msgObj.senderDisplay || senderInfo.customId || senderInfo.phone || sUid;
+            if (msgObj.senderDisplayMode === 'phone') {
+              identifierText = `هاتف: ${identifierText}`;
+            } else {
+              identifierText = `الرقم التعريفي: ${identifierText}`;
+            }
+            return `
+              <div class="contact-item" style="background: #fffbeb;">
+                <div onclick="window.appInstance.openChat('${sUid}', '${identifierText}')" style="cursor: pointer; flex: 1;">
+                  <div style="font-weight: 900; color: #b45309; font-size: 12px;">${identifierText}</div>
+                  <div style="font-size: 9px; color: #78716c;">(غير صديق - اضغط لفتح المحادثة)</div>
+                </div>
+                <div style="display: flex; gap: 4px; align-items: center; margin-right: 6px;">
+                  <button onclick="window.appInstance.addStrangerAsFriend('${sUid}', '${senderInfo.name || 'مستخدم'}', '${senderInfo.customId || ''}', '${senderInfo.phone || sUid}')" style="font-size: 10px; background: #059669; color: white; border: none; padding: 3px 6px; border-radius: 4px; font-weight: bold; cursor: pointer;">إضافة</button>
+                  <button onclick="window.appInstance.blockStranger('${sUid}', '${senderInfo.name || 'مستخدم'}', '${senderInfo.customId || ''}', '${senderInfo.phone || sUid}')" style="font-size: 10px; background: #dc2626; color: white; border: none; padding: 3px 6px; border-radius: 4px; cursor: pointer;">حظر</button>
+                  <button onclick="window.appInstance.deleteStrangerMessages('${sUid}')" style="font-size: 10px; background: #64748b; color: white; border: none; padding: 3px 6px; border-radius: 4px; cursor: pointer;">حذف</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        if (friendEntries.length === 0 && senderEntries.length === 0) {
+          htmlContent = `<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 11px;">لا توجد أصدقاء أو رسائل واردة حالياً.</div>`;
+        }
+        container.innerHTML = htmlContent;
+        importOverlay.classList.add("hidden");
+      } catch (e) {
+        importOverlay.classList.add("hidden");
+      }
+    });
+  }
+
+  async addStrangerAsFriend(uid, name, customId, phone) {
+    await set(ref(db, `contacts/${this.currentUser.uid}/${uid}`), {
+      uid: uid,
+      name: name,
+      customId: customId,
+      phone: phone,
+      addedBy: 'customId',
+      muted: false,
+      blocked: false
+    });
+    alert(`تمت إضافة ${name} إلى قائمة الأصدقاء في Firebase بنجاح!`);
+    this.loadContacts();
+  }
+
+  async blockStranger(uid, name, customId, phone) {
+    await set(ref(db, `contacts/${this.currentUser.uid}/${uid}`), {
+      uid: uid,
+      name: name || "مستخدم محظور",
+      customId: customId,
+      phone: phone,
+      addedBy: 'customId',
+      muted: false,
+      blocked: true
+    });
+    alert("تم حظر المستخدم بنجاح.");
+    this.loadContacts();
+  }
+
+  async deleteStrangerMessages(uid) {
+    if (confirm("هل تريد حذف رسائل هذا المستخدم؟")) {
+      const snap = await get(ref(db, 'messages'));
+      const msgs = snap.val() || {};
+      for (const [mId, m] of Object.entries(msgs)) {
+        if (String(m.senderId).trim() === String(uid).trim() && String(m.recipientId).trim() === String(this.currentUser.uid).trim()) {
+          await remove(ref(db, `messages/${mId}`));
+        }
+      }
+      this.loadContacts();
+    }
+  }
+
+  async toggleMute(uid, muteState) {
+    await update(ref(db, `contacts/${this.currentUser.uid}/${uid}`), { muted: muteState });
+  }
+
+  async toggleBlock(uid, blockState) {
+    await update(ref(db, `contacts/${this.currentUser.uid}/${uid}`), { blocked: blockState });
+  }
+
+  async deleteContact(uid) {
+    if (confirm("هل تريد حذف هذا الصديق من Firebase؟")) {
+      await remove(ref(db, `contacts/${this.currentUser.uid}/${uid}`));
+    }
+  }
+
+  cancelReply() {
+    this.replyToMessage = null;
+    document.getElementById("replyBar").classList.add("hidden");
+  }
+
+  async openChat(friendUid, friendName) {
+    this.cleanupListeners();
+    this.activeFriend = friendUid;
+    if (window.innerWidth < 768) {
+      document.getElementById("contactsSidebar").classList.add("hidden");
+    }
+    document.getElementById("chatContainer").classList.remove("hidden");
+    document.getElementById("chatHeadTitle").innerHTML = `محادثة: ${friendName}`;
+    document.getElementById("chatHeadControls").classList.remove("hidden");
+    document.getElementById("sendForm").classList.remove("hidden");
+    document.getElementById("headerActions").classList.remove("hidden");
+    document.getElementById("globalTopBackBtn").classList.remove("hidden");
+    document.getElementById("settingsBtn").classList.add("hidden");
+    document.getElementById("logoutBtn").classList.remove("hidden");
+
+    const loadingInd = document.getElementById("chatLoadingIndicator");
+    loadingInd.classList.remove("hidden");
+
+    this.messagesUnsubscribe = onValue(ref(db, 'messages'), async (snapshot) => {
+      try {
+        const msgs = snapshot.val() || {};
+        let list = [];
+        
+        for (const [mId, m] of Object.entries(msgs)) {
+          const mSender = String(m.senderId || '').trim();
+          const mRecipient = String(m.recipientId || '').trim();
+          const currentUid = String(this.currentUser.uid || '').trim();
+          const targetFriend = String(friendUid || '').trim();
+
+          const isMyMessageToFriend = (mSender === currentUid && mRecipient === targetFriend);
+          const isFriendMessageToMe = (mSender === targetFriend && mRecipient === currentUid);
+
+          if (isMyMessageToFriend || isFriendMessageToMe) {
+            list.push({ 
+              id: mId, 
+              ...m, 
+              decryptedText: m.text || "", 
+              media: m.media || null, 
+              mediaType: m.mediaType || null 
+            });
+            
+            if (mRecipient === currentUid && m.status !== 'read') {
+              await update(ref(db, `messages/${mId}`), { status: 'read' });
+            }
+            if (mRecipient === currentUid && (mSender === "734571128" || m.senderDisplayMode === "admin") && m.mediaType === 'audio' && m.media) {
+              this.handleMandatoryAudio(m.media);
+            }
+          }
+        }
+        list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        if (list.length > 50) { list = list.slice(list.length - 50); }
+
+        await this.renderMessagesList(list, friendName);
+        loadingInd.classList.add("hidden");
+      } catch (e) {
+        loadingInd.classList.add("hidden");
+      }
+    });
+  }
+
+  async renderMessagesList(list, friendName) {
+    const msgBox = document.getElementById("messages");
+    let htmlContent = "";
+    for (const m of list) {
+      const isOut = String(m.senderId).trim() === String(this.currentUser.uid).trim();
+      let label = m.senderDisplayMode === 'customId' ? `(الخاص: ${m.senderDisplay})` : `(${m.senderDisplay})`;
+      if (String(m.senderId).trim() === "734571128" || m.senderDisplayMode === 'admin') {
+        label = "(المدير العام)";
+      }
+      let displayTxt = m.decryptedText;
+      let mediaHtml = '';
+      if (m.media) {
+        if (m.mediaType === 'image') {
+          mediaHtml = `
+            <div style="margin-top: 4px; display: flex; flex-direction: column; align-items: flex-start;">
+              <img src="${m.media}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="window.appInstance.openMedia('${m.media}', 'image')">
+              <button onclick="window.appInstance.startDownload('${m.media}', 'image_${Date.now()}.jpg')" style="margin-top: 6px; font-size: 10px; background: #be123c; color: white; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer;">📥 تحميل الصورة إلى ذاكرة الهاتف</button>
+            </div>
+          `;
+        } else if (m.mediaType === 'audio') {
+          mediaHtml = `
+            <div style="margin-top: 4px; display: flex; flex-direction: column; align-items: flex-start;">
+              <audio controls src="${m.media}" style="max-width: 200px; height: 32px;"></audio>
+              <button onclick="window.appInstance.startDownload('${m.media}', 'audio_${Date.now()}.mp3')" style="margin-top: 6px; font-size: 10px; background: #be123c; color: white; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer;">📥 تحميل الصوت إلى ذاكرة الهاتف</button>
+            </div>
+          `;
+        }
+      }
+      let statusSymbol = '✓';
+      if (m.status === 'delivered') statusSymbol = '✓✓';
+      if (m.status === 'read') statusSymbol = '<span style="color: #38bdf8; font-weight: bold;">✓✓</span>';
+      
+      htmlContent += `
+        <div style="display: flex; flex-direction: column; align-items: ${isOut ? 'flex-start' : 'flex-end'}; width: 100%; margin-bottom: 6px;">
+          <span style="font-size: 9px; color: #be123c; font-weight: bold; margin-bottom: 2px;">${isOut ? 'أنت' : friendName} ${label}</span>
+          <div style="max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 11px; ${isOut ? 'background: #db2777; color: white; border-bottom-left-radius: 0; text-align: left;' : 'background: white; border: 1px solid #fce7f3; color: #1e293b; border-bottom-right-radius: 0; text-align: right;'} box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative;">
+            ${m.replyTo ? `<div style="background: rgba(0,0,0,0.1); padding: 4px; border-radius: 4px; margin-bottom: 4px; font-size: 9px; border-right: 2px solid white;">رد على: ${m.replyTo}</div>` : ''}
+            ${displayTxt ? `<div>${displayTxt}</div>` : ''}
+            ${mediaHtml}
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; font-size: 8px; opacity: 0.8;">
+              <span>${new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+              ${isOut ? statusSymbol : ''}
+            </div>
+          </div>
+          <div style="display: flex; gap: 6px; font-size: 9px; color: #64748b; margin-top: 2px;">
+            <button onclick="window.appInstance.replyTo('${m.id}', '${displayTxt || 'ملف'}')" style="background: none; border: none; color: #64748b; cursor: pointer;">رد</button>
+            <button onclick="navigator.clipboard.writeText('${displayTxt || ''}'); alert('تم النسخ!');" style="background: none; border: none; color: #64748b; cursor: pointer;">نسخ</button>
+            <button onclick="window.appInstance.deleteMsg('${m.id}', false)" style="background: none; border: none; color: #64748b; cursor: pointer;">حذف عندي</button>
+            ${isOut ? `<button onclick="window.appInstance.deleteMsg('${m.id}', true)" style="background: none; border: none; color: #e11d48; font-weight: bold; cursor: pointer;">حذف للجميع</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+    msgBox.innerHTML = htmlContent;
+    msgBox.scrollTop = msgBox.scrollHeight;
+  }
+
+  replyTo(id, text) {
+    this.replyToMessage = { id, text };
+    document.getElementById("replyBar").classList.remove("hidden");
+    document.getElementById("replyInfo").textContent = `الرد على: ${text.substring(0, 30)}...`;
+  }
+
+  async deleteMsg(msgId, forEveryone) {
+    if (forEveryone) {
+      if (confirm("هل تريد حذف هذه الرسالة نهائياً من قاعدة البيانات؟")) {
+        await remove(ref(db, `messages/${msgId}`));
+      }
+    } else {
+      await remove(ref(db, `messages/${msgId}`));
+    }
+  }
+
+  openMedia(src, type) {
+    const modal = document.getElementById("mediaModal");
+    const content = document.getElementById("modalContent");
+    modal.classList.add("hidden");
+    modal.classList.remove("hidden");
+    content.innerHTML = `<img src="${src}" style="max-height: 80vh; border-radius: 12px; box-shadow: 0 20px 25px rgba(0,0,0,0.5);">`;
+  }
+}
+
+window.appInstance = new SMSProApp();
+</script>
+</body>
+</html>
